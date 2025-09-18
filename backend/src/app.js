@@ -30,12 +30,19 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'email & password required' });
+
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ error: 'email already in use' });
+
     const hashed = await bcrypt.hash(password, 10);
     const u = await User.create({ email, password: hashed });
-    res.json({ id: u._id, email: u.email });
+
+    const token = jwt.sign({ id: u._id, email: u.email }, process.env.JWT_SECRET);
+
+    res.json({ token, user: { id: u._id, email: u.email } });
   } catch (err) {
+    console.error('Register error:', err);
+    if (err.code === 11000) return res.status(400).json({ error: 'email already in use' });
     res.status(500).json({ error: err.message });
   }
 });
